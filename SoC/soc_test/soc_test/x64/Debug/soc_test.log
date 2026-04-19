@@ -1,0 +1,5 @@
+﻿  soc_test.c
+C:\HOME\github\C\C_Programming\SoC\soc_test\soc_test\soc_test.c(38,29): warning C4047: 'function': 'const char *' differs in levels of indirection from 'char'
+C:\HOME\github\C\C_Programming\SoC\soc_test\soc_test\soc_test.c(38,29): warning C4024: 'strncmp': different types for formal and actual parameter 1
+C:\HOME\github\C\C_Programming\SoC\soc_test\soc_test\soc_test.c(38,39): error C2296: '&': not valid as left operand has type 'char [3]'
+C:\HOME\github\C\C_Programming\SoC\soc_test\soc_test\soc_test.c(38,18): error C2198: 'int strncmp(const char *,const char *,size_t)': too few arguments for call
