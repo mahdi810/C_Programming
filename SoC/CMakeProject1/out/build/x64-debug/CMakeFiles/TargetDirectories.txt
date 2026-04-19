@@ -1,5 +1,0 @@
-C:/HOME/github/C/C_Programming/SoC/CMakeProject1/out/build/x64-debug/CMakeFiles/edit_cache.dir
-C:/HOME/github/C/C_Programming/SoC/CMakeProject1/out/build/x64-debug/CMakeFiles/rebuild_cache.dir
-C:/HOME/github/C/C_Programming/SoC/CMakeProject1/out/build/x64-debug/CMakeProject1/CMakeFiles/CMakeProject1.dir
-C:/HOME/github/C/C_Programming/SoC/CMakeProject1/out/build/x64-debug/CMakeProject1/CMakeFiles/edit_cache.dir
-C:/HOME/github/C/C_Programming/SoC/CMakeProject1/out/build/x64-debug/CMakeProject1/CMakeFiles/rebuild_cache.dir
