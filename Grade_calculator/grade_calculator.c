@@ -45,6 +45,8 @@ void print_help()
     printf("creat  : to create new user. \n");
     printf("login  : to login to the system. \n");
     printf("forgot : in case you forget your password. \n");
+    printf("save   : to save the progress. \n");
+    printf("save_user : to save the user setting. \n");
 }
 
 static int add_user_to_pool(user_t *user_pool_t, user_t *user_x, unsigned int index)
@@ -237,6 +239,21 @@ int main()
         }
         else if (!strcmp(cmd, "create"))
         {
+            unsigned char plain_password[cmd_len];
+
+            FILE *fd = fopen(USER_FILE, "rb");
+            if (fd == NULL)
+            {
+                printf("the user file could not be openend. \n");
+                printf("or file does not exist. \n");
+                no_of_user = 0;
+            }
+            else
+            {
+                fread(&no_of_user, sizeof(no_of_user), 1, fd);
+                fclose(fd);
+            }
+
             if (no_of_user == 0)
             {
                 user_t user1;
@@ -268,9 +285,55 @@ int main()
                 }
                 sodium_memzero(master_password, strlen(master_password));
 
-                printf("master password : %s \n", master_password);
-                printf("hash master password : %s \n", user1.password);
+                user1.attempt_remainig = 3;
+                user1.is_admin = true;
+                user1.is_logged_in = false;
+
+                add_user_to_pool(&user_pool, &user1, no_of_user);
+                no_of_user++;
             }
+            else
+            {
+                user_t user2;
+                printf("enter your username : ");
+                fgets(cmd, cmd_len, stdin);
+                cmd_clean(cmd);
+                if (strlen(cmd) == 0)
+                {
+                    printf("username cannot be empty. \n");
+                }
+                sscanf(cmd, "%s", &user2.username);
+
+                printf("enter the password. \n");
+                get_password(plain_password, cmd_len);
+                if (strlen(plain_password) == 0)
+                {
+                    printf("du bist so dumm! , das master kennwort sollte nicht leer sein. \n");
+                }
+
+                // hashing the password and saving it to the user1 structure
+                if (crypto_pwhash_str(user2.password, &plain_password, strlen(plain_password), crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0)
+                {
+                    printf("failed to hash the password. \n");
+                    return 1;
+                }
+                sodium_memzero(plain_password, strlen(plain_password));
+
+                user2.attempt_remainig = 3;
+                user2.is_admin = false;
+                user2.is_logged_in = false;
+
+                add_user_to_pool(&user_pool, &user2, no_of_user);
+                no_of_user++;
+            }
+        }
+        else if (!strcmp(cmd, "save_user"))
+        {
+            add_user_pool_to_file(user_pool, no_of_user);
+            printf("file successfully saved. \n");
+        }
+        else if (!strcmp(cmd, "login"))
+        {
         }
     } while (terminate == 0);
 
