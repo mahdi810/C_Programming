@@ -4,7 +4,7 @@ LDFLAGS = -Llibsodium-1.0.22-mingw/libsodium-win64/lib
 LDLIBS = -lsodium
 
 TARGET = grade_calculator
-SRCS = grade_calculator.c
+SRCS = grade_calculator.c include/subject_t.c include/user_t.c
 
 all: run
 

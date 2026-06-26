@@ -3,9 +3,15 @@
 #include <stdbool.h>
 #include <time.h>
 
-#define cmd_len 128
+#include "include/user_t.h"
+#include "include/subject_t.h"
+
 #define MAX_USER 10
 #define USER_FILE "user.dat"
+
+// subject db
+subject_db_t subject_db;
+unsigned int no_of_subject = 0;
 
 void cmd_clean(char *cmd)
 {
@@ -21,32 +27,13 @@ void cmd_clean(char *cmd)
     }
 }
 
-typedef struct
-{
-    char username[cmd_len];
-    char password[crypto_pwhash_STRBYTES];
-    unsigned int attempt_remainig;
-    bool is_admin;
-    bool is_logged_in;
-} user_t;
-
-typedef struct
-{
-    char name[cmd_len];
-    double grade;
-    unsigned int ects;
-} subject_t;
-
 void print_help()
 {
-    printf("x      : to exit the program. \n");
-    printf("h      : to show this help menu. \n");
-    printf("test   : to run the test for the program. \n");
     printf("creat  : to create new user. \n");
     printf("login  : to login to the system. \n");
     printf("forgot : in case you forget your password. \n");
-    printf("save   : to save the progress. \n");
-    printf("save_user : to save the user setting. \n");
+    printf("x      : to exit the program. \n");
+    printf("h      : to show this help menu. \n");
 }
 
 static int add_user_to_pool(user_t *user_pool_t, user_t *user_x, unsigned int index)
@@ -89,7 +76,7 @@ void add_user_pool_to_file(user_t *user_pool_t, unsigned int index)
     fclose(fd);
 }
 
-void load_user_data_from_file(user_t *user_pool_t)
+void load_user_data_from_file(user_t *user_pool_t, unsigned int *no_of_user)
 {
     // opening the file
     FILE *fd = fopen(USER_FILE, "rb");
@@ -100,10 +87,10 @@ void load_user_data_from_file(user_t *user_pool_t)
     }
 
     // getting the number of the users.
-    unsigned int no_of_user;
-    fread(&no_of_user, sizeof(unsigned int), 1, fd);
+    *no_of_user = 0;
+    fread(no_of_user, sizeof(unsigned int), 1, fd);
 
-    for (int i = 0; i < no_of_user; i++)
+    for (int i = 0; i < *no_of_user; i++)
     {
         if (!fread(&user_pool_t[i], sizeof(user_t), 1, fd))
         {
@@ -232,10 +219,11 @@ int main()
 
             printf("PHASE 2 OF THE TEST. \n");
             // loading the data from the file
-            load_user_data_from_file(&user_pool);
+            load_user_data_from_file(&user_pool, &no_of_user);
 
             // printing the userpool
             print_user_pool(&user_pool, no_of_user);
+            printf("test successful. \n");
         }
         else if (!strcmp(cmd, "create"))
         {
@@ -289,7 +277,13 @@ int main()
                 user1.is_admin = true;
                 user1.is_logged_in = false;
 
+                // update the no_of_user and the user_pool
                 add_user_to_pool(&user_pool, &user1, no_of_user);
+                no_of_user++;
+
+                // adding the no_of_user to the file, adding the user_pool to the file
+                add_user_pool_to_file(&user_pool, no_of_user);
+
                 no_of_user++;
             }
             else
@@ -323,17 +317,133 @@ int main()
                 user2.is_admin = false;
                 user2.is_logged_in = false;
 
+                // making sure the the user_pool has all the previous users, and adding the new user to the user_pool
+                load_user_data_from_file(&user_pool, &no_of_user);
                 add_user_to_pool(&user_pool, &user2, no_of_user);
                 no_of_user++;
+
+                // saving the user_pool to the file.
+                add_user_pool_to_file(user_pool, no_of_user);
+
+                // // printing the user_pool
+                // print_user_pool(&user_pool, no_of_user);
+                // printf("these are the users in the user_pool. \n");
+
+                // printing the data from the userfile
+                load_user_data_from_file(&user_pool, &no_of_user);
+                print_user_pool(&user_pool, no_of_user);
+                printf("these are the users in the user_file. \n");
             }
-        }
-        else if (!strcmp(cmd, "save_user"))
-        {
-            add_user_pool_to_file(user_pool, no_of_user);
-            printf("file successfully saved. \n");
         }
         else if (!strcmp(cmd, "login"))
         {
+
+            load_user_data_from_file(&user_pool, &no_of_user);
+            if (no_of_user == 0)
+            {
+                printf("no users in the system, please create a user first. \n");
+                continue;
+            }
+            else
+            {
+                printf("please enter your username : ");
+                fgets(cmd, cmd_len, stdin);
+                cmd_clean(cmd);
+                for (int i = 0; i < no_of_user; i++)
+                {
+                    if (!strcmp(cmd, user_pool[i].username))
+                    {
+                        printf("please enter the password. \n");
+                        get_password(cmd, cmd_len);
+                        cmd_clean(cmd);
+
+                        // verifying the entered password with the hashed password in the user_pool
+                        if (crypto_pwhash_str_verify(user_pool[i].password, cmd, strlen(cmd)) == 0)
+                        {
+                            printf("login successful. \n");
+                            user_pool[i].is_logged_in = true;
+                            add_user_pool_to_file(user_pool, no_of_user);
+
+                            // user interaction function
+                            if (user_pool[i].is_admin == true)
+                            {
+                                // admin user interaction
+                                printf("admin user access \n");
+                            }
+                            else
+                            {
+                                // normal user interaction
+                                if (user_pool[i].is_logged_in == true)
+                                {
+                                    printf("please enter the number of subjects you want to add : ");
+                                    int num_subject;
+                                    fgets(cmd, cmd_len, stdin);
+                                    cmd_clean(cmd);
+                                    if (sscanf(cmd, "%d", &num_subject) != 1 || num_subject <= 0 || num_subject > MAX_SUBJECT)
+                                    {
+                                        printf("invalid number of subjects. \n");
+                                        continue;
+                                    }
+                                    else
+                                    {
+                                        load_subject_db_from_file(&subject_db, &no_of_subject);
+                                        for (int i = no_of_subject; i < num_subject + no_of_subject; i++)
+                                        {
+                                            // getting the subject data from the user
+                                            subject_t subject1;
+                                            printf("please enter the subject name : ");
+                                            fgets(cmd, cmd_len, stdin);
+                                            cmd_clean(cmd);
+                                            sscanf(cmd, "%s", &subject1.name);
+                                            printf("please enter the grade : ");
+                                            fgets(cmd, cmd_len, stdin);
+                                            cmd_clean(cmd);
+                                            sscanf(cmd, "%lf", &subject1.grade);
+                                            printf("please enter the ECTS : ");
+                                            fgets(cmd, cmd_len, stdin);
+                                            cmd_clean(cmd);
+                                            sscanf(cmd, "%u", &subject1.ects);
+
+                                            // adding the subject to db
+                                            add_subject_to_db(&subject_db, &subject1, no_of_subject);
+                                            no_of_subject++;
+                                        }
+
+                                        // adding the subject db to the file
+                                        add_subject_db_to_file(&subject_db, no_of_subject);
+                                        printf("the subjects have been added to the db and saved to the file. \n");
+                                    }
+
+                                    // getting the data from the file and calculating the gpa and total ects
+                                    load_subject_db_from_file(&subject_db, &no_of_subject);
+                                    double gpa = 0.0;
+                                    unsigned int total_ects = 0;
+                                    calc_sem_data(&subject_db, no_of_subject, &gpa, &total_ects);
+                                    print_final_results(&subject_db, no_of_subject, gpa, total_ects);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            printf("login failed. \n");
+                            user_pool[i].attempt_remainig--;
+                            if (user_pool[i].attempt_remainig == 0)
+                            {
+                                printf("you have used all your attempts, please contact the admin. \n");
+                            }
+                            else
+                            {
+                                printf("you have %u attempts remaining. \n", user_pool[i].attempt_remainig);
+                                add_user_pool_to_file(user_pool, no_of_user);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        printf("the user does not exist / check the spelling. \n");
+                    }
+                }
+            }
         }
     } while (terminate == 0);
 
