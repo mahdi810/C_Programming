@@ -156,3 +156,14 @@ bool is_user_db_full(const user_dbt_t *user_db)
         return false;
     }
 }
+
+void print_database(user_dbt_t *db)
+{
+    for (int i = 0; i < db->count; i++)
+    {
+        printf("username : %s \n", db->users[i].username);
+        printf("password : %s \n", db->users[i].password);
+        printf("attempts remaining : %d \n", db->users[i].attempts_remaining);
+        printf("is_admin : %d \n\n", db->users[i].is_admin);
+    }
+}

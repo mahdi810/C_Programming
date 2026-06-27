@@ -37,3 +37,4 @@ void user_logout(user_t **current_user);
 user_t *find_user_in_db(user_dbt_t *user_db, const char *username);
 bool is_user_admin(const user_t *user);
 bool is_user_db_full(const user_dbt_t *user_db);
+void print_database(user_dbt_t *db);
