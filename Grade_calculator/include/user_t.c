@@ -167,3 +167,18 @@ void print_database(user_dbt_t *db)
         printf("is_admin : %d \n\n", db->users[i].is_admin);
     }
 }
+
+
+void create_user_and_save_to_file(FILE *fd2, user_dbt_t* user_database)
+{
+    fd2 = fopen(USER_FILE, "rd"); 
+    if(fd2 == NULL)
+    {
+        printf("failed to open the user file. \n"); 
+    }
+    else 
+    {
+        // reading the file and getting the previous lists of the users. 
+        
+    }
+}

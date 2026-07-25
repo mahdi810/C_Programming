@@ -1,8 +1,10 @@
+#pragma once
 #include <stdio.h>
 #include "include/user_t.h"
+#include "include/file_op.h"
+#include "include/pass.h"
 
 #define CMD_LEN 128
-#define USER_FILE "user.dat"
 
 typedef struct
 {
@@ -32,6 +34,7 @@ void print_menu()
     printf("4. LOGOUT. \n");
     printf("5. SHUTDOWN. \n");
     printf("6. TEST. \n");
+    printf("7. ADMIN_USER. \n");
 }
 
 void cmd_clean(char *cmd)
@@ -42,6 +45,7 @@ void cmd_clean(char *cmd)
         if (*cmd == '\r' || *cmd == '\n')
         {
             *cmd = '\0';
+            break;
         }
         cmd++;
     }
@@ -52,6 +56,8 @@ int main()
     user_dbt_t user_db1;     // user database
     user_db_init(&user_db1); // initializing the user database.
     user_t user;
+    user_t *current_user;
+    FILE *fd;
 
     char cmd[NAME_LEN];
     state_t state = SELECTION_MENU;
@@ -84,39 +90,65 @@ int main()
             {
                 state = CREATE_USER;
             }
-            else if (!strcmp(cmd, "running"))
-            {
-                state = RUNNING;
-            }
             else if (!strcmp(cmd, "test"))
             {
                 state = TEST;
+            }
+            else if (!strcmp(cmd, "admin_user"))
+            {
+                state = ADMIN_USER;
+            }
+            else
+            {
+                printf("invalid command");
             }
             break;
 
         case LOGIN:
             printf("this is the login section. \n");
+            // first load the file and check if the file exist
+            open_file_and_update_user_db(fd, &user_db1);
+
+            printf("please enter the username. \n");
+            fgets(cmd, CMD_LEN, stdin);
+            cmd_clean(cmd);
+            if (sscanf(cmd, "%s", &user.username) != 1)
+            {
+                printf("invalid username. \n");
+                break;
+            }
+
+            printf("please enter the password. \n");
+            fgets(cmd, CMD_LEN, stdin);
+            cmd_clean(cmd);
+            if (sscanf(cmd, "%s", &user.password) != 1)
+            {
+                printf("invalid password. \n");
+                break;
+            }
+
+            // now i have to search for the user in the database and check if the password is correct.
+            current_user = find_user_in_db(&user_db1, user.username);
+            if (current_user != NULL)
+            {
+                printf("logic successfull. \n");
+                state = RUNNING;
+            }
+            else
+            {
+                printf("user was not found. \n");
+                state = SELECTION_MENU;
+            }
+
+            // of course that the password is hased and should be compared with the hashed password in the database.
+            // another imporvement should be added that the hashed password password should be salted and that is not done until now.
+
             break;
 
         case CREATE_USER:
             printf("this is the create user section. \n");
             // first load the file and check if the file exist
-            FILE *fd = fopen(USER_FILE, "rb");
-            if (fd == NULL)
-            {
-                printf("the file does not exist or corrupt. \n");
-                printf("the file has been created: %s \n", USER_FILE);
-                user_db1.count = 0;
-                printf("count has been set to 0. \n");
-            }
-            else
-            {
-                if ((fread(&user_db1, sizeof(user_dbt_t), 1, fd)) != 1)
-                {
-                    printf("there is no file, a file will be created. \n");
-                    fclose(fd);
-                }
-            }
+            open_file_and_update_user_db(fd, &user_db1);
 
             if (user_db1.count == 0)
             {
@@ -133,16 +165,20 @@ int main()
                 cmd_clean(cmd);
 
                 // hashing the password and storing it in the user.password
-                if (crypto_pwhash_str(user.password, cmd, strlen(cmd), crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0)
+                if (hash_password(cmd, user.password) == false)
                 {
-                    printf("password hashing failed. \n");
-                    return 1;
+                    printf("hashing password failed. \n");
                 }
 
                 // adding the user to the database
+                user_create(&user_db1, user.username, user.password);
+
+                // saving the database to the file
+                update_file_and_save(fd, &user_db1);
             }
             else
             {
+                // getting the username
                 printf("please enter the username. \n");
                 fgets(cmd, CMD_LEN, stdin);
                 cmd_clean(cmd);
@@ -156,14 +192,21 @@ int main()
                 strncpy(user.password, cmd, CMD_LEN);
                 user.password[CMD_LEN - 1] = '\0';
 
+                
+
+                // adding the user to the database.
                 user_create(&user_db1, user.username, user.password);
                 print_database(&user_db1);
-                state = SELECTION_MENU;
+
+                
             }
 
+            state = SELECTION_MENU;
             break;
 
         case RUNNING:
+            printf("hi welcome to the program. \n");
+            fgets(cmd, CMD_LEN, stdin);
             break;
 
         case LOGOUT:
@@ -173,6 +216,10 @@ int main()
             break;
 
         case ADMIN_USER:
+            // here the admin user privillages will be implemented.
+            // if the user is an admin user, then he should be able to see all the users in the database and be able to delete them, but there should be the privacyy of the users and the admin user should not be able to see the passwords of the users, but he should be able to reset the password of the users.
+            // the admin user should be able to see the grades of the users, but he should not be able to change them, but he should be able to reset the grades of the users.
+
             break;
 
         case TEST:
@@ -180,6 +227,8 @@ int main()
             print_database(&user_db1);
             printf("test successfull \n");
             fgets(cmd, CMD_LEN, stdin);
+
+            state = SELECTION_MENU;
             break;
 
         default:

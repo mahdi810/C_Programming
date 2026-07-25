@@ -1,1 +1,45 @@
+# Compiled object and dependency files
+*.o
+*.obj
+*.d
+
+# Executables and libraries
 *.exe
+*.out
+*.app
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Project executable
+main
+main.exe
+
+# Build directories
+build/
+bin/
+obj/
+debug/
+release/
+
+# Debugging and profiling files
+*.pdb
+*.ilk
+*.map
+*.gcda
+*.gcno
+*.gcov
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating-system files
+.DS_Store
+Thumbs.db
+
