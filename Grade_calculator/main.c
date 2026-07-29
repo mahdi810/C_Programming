@@ -1,10 +1,8 @@
-#pragma once
 #include <stdio.h>
 #include "include/user_t.h"
 #include "include/file_op.h"
 #include "include/pass.h"
-
-#define CMD_LEN 128
+#include "include/command.h"
 
 typedef struct
 {
@@ -37,27 +35,13 @@ void print_menu()
     printf("7. ADMIN_USER. \n");
 }
 
-void cmd_clean(char *cmd)
-{
-    cmd[NAME_LEN - 1] = '\0';
-    while (*cmd != '\0')
-    {
-        if (*cmd == '\r' || *cmd == '\n')
-        {
-            *cmd = '\0';
-            break;
-        }
-        cmd++;
-    }
-}
-
 int main()
 {
     user_dbt_t user_db1;     // user database
     user_db_init(&user_db1); // initializing the user database.
     user_t user;
     user_t *current_user;
-    FILE *fd;
+    FILE *fd = fopen(USER_FILE, "wb");
 
     char cmd[NAME_LEN];
     state_t state = SELECTION_MENU;
@@ -192,13 +176,9 @@ int main()
                 strncpy(user.password, cmd, CMD_LEN);
                 user.password[CMD_LEN - 1] = '\0';
 
-                
-
                 // adding the user to the database.
                 user_create(&user_db1, user.username, user.password);
                 print_database(&user_db1);
-
-                
             }
 
             state = SELECTION_MENU;

@@ -1,4 +1,7 @@
 #include "user_t.h"
+#include "command.h"
+#include "file_op.h"
+#include "pass.h"
 
 // this function cleans the memory reserved for the user database.
 void user_db_init(user_dbt_t *user_db)
@@ -168,17 +171,50 @@ void print_database(user_dbt_t *db)
     }
 }
 
-
-void create_user_and_save_to_file(FILE *fd2, user_dbt_t* user_database)
+int create_user_and_save_to_file(FILE *fd2, user_dbt_t *user_database)
 {
-    fd2 = fopen(USER_FILE, "rd"); 
-    if(fd2 == NULL)
+    fd2 = fopen(USER_FILE, "rd");
+    if (fd2 == NULL)
     {
-        printf("failed to open the user file. \n"); 
+        printf("failed to open the user file. \n");
     }
-    else 
+    else
     {
-        // reading the file and getting the previous lists of the users. 
-        
+        // reading the file and getting the previous lists of the users.
+        if (fread(&user_database, sizeof(user_database->users[0]), user_database->count, fd2) != user_database->count)
+        {
+            printf("failed to update the user database. \n");
+            return 1;
+        }
+        else
+        {
+            printf("user database successfully updated. \n");
+        }
+
+        printf("enter the username. \n");
+
+        // getting the username
+        user_t user;
+        fgets(user.username, CMD_LEN, stdin);
+        cmd_clean(user.username);
+
+        // getting the password
+        fgets(user.password, CMD_LEN, stdin);
+        cmd_clean(user.password);
+        if (hash_password(user.password, user.password) == false)
+        {
+            printf("hashing password failed. \n");
+            return 1;
+        }
+
+        // adding the user to the databse
+        user_create(user_database, user.username, user.password);
+
+        // saving the file
+        update_file_and_save(fd2, user_database);
+
+        fclose(fd2);
+
+        return 0;
     }
 }
