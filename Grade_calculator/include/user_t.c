@@ -2,6 +2,7 @@
 #include "command.h"
 #include "file_op.h"
 #include "pass.h"
+#include "vault.h"
 
 // this function cleans the memory reserved for the user database.
 void user_db_init(user_dbt_t *user_db)
@@ -11,6 +12,8 @@ void user_db_init(user_dbt_t *user_db)
         return;
     }
     user_db->count = 0;
+    user_db->admin_box_ready = false;
+    memset(&user_db->admin_box, 0, sizeof(user_db->admin_box));
     for (int i = 0; i < MAX_USER; i++)
     {
         memset(&user_db->users[i], 0, sizeof(user_t));
@@ -27,6 +30,7 @@ int user_create(user_dbt_t *db, const char *username, const char *password)
         return -1;
     }
     user_t new_user;
+    memset(&new_user, 0, sizeof(new_user));
 
     if (db->count >= MAX_USER)
     {
@@ -35,7 +39,7 @@ int user_create(user_dbt_t *db, const char *username, const char *password)
     }
 
     // checking if the user already exist
-    for (int i = 0; i < db->count; i++)
+    for (unsigned int i = 0; i < db->count; i++)
     {
         if (strcmp(username, db->users[i].username) == 0)
         {
@@ -56,14 +60,24 @@ int user_create(user_dbt_t *db, const char *username, const char *password)
     }
 
     new_user.attempts_remaining = MAX_ATTEMPT;
+    new_user.is_admin = (db->count == 0);
+
     if (db->count == 0)
     {
-        // this is the first user and the admin flag should be true.
-        new_user.is_admin = true;
+        // this is the first user: also set up the admin key-escrow box,
+        // protected by this same password.
+        if (!admin_keybox_create(&db->admin_box, password))
+        {
+            printf("failed to initialize the admin key vault. \n");
+            return -1;
+        }
+        db->admin_box_ready = true;
     }
-    else
+
+    if (!db->admin_box_ready || !user_vault_init(&new_user, password, &db->admin_box))
     {
-        new_user.is_admin = false;
+        printf("failed to initialize the user's grade vault. \n");
+        return -1;
     }
 
     db->users[db->count++] = new_user;
@@ -93,9 +107,10 @@ user_t *user_login(user_dbt_t *user_db, const char *username, const char *passwo
     }
 
     // checking if the password is right
-    if (!crypto_pwhash_str_verify(user->password, password, strlen(password)))
+    if (crypto_pwhash_str_verify(user->password, password, strlen(password)) != 0)
     {
-        printf("you entered the wrong password. \n");
+        user->attempts_remaining--;
+        printf("you entered the wrong password. %u attempt(s) remaining. \n", user->attempts_remaining);
         return NULL;
     }
     else
@@ -125,7 +140,7 @@ user_t *find_user_in_db(user_dbt_t *user_db, const char *username)
         printf("invalid database or username. \n");
         return NULL;
     }
-    for (int i = 0; i < user_db->count; i++)
+    for (unsigned int i = 0; i < user_db->count; i++)
     {
         if (!strncmp(user_db->users[i].username, username, NAME_LEN - 1))
         {
@@ -162,7 +177,7 @@ bool is_user_db_full(const user_dbt_t *user_db)
 
 void print_database(user_dbt_t *db)
 {
-    for (int i = 0; i < db->count; i++)
+    for (unsigned int i = 0; i < db->count; i++)
     {
         printf("username : %s \n", db->users[i].username);
         printf("password : %s \n", db->users[i].password);
@@ -171,50 +186,36 @@ void print_database(user_dbt_t *db)
     }
 }
 
-int create_user_and_save_to_file(FILE *fd2, user_dbt_t *user_database)
+// lists accounts without exposing password hashes - suitable for admin use.
+void print_user_summary(const user_dbt_t *db)
 {
-    fd2 = fopen(USER_FILE, "rd");
-    if (fd2 == NULL)
+    if (db == NULL || db->count == 0)
     {
-        printf("failed to open the user file. \n");
+        printf("no users in the database. \n");
+        return;
     }
-    else
+    for (unsigned int i = 0; i < db->count; i++)
     {
-        // reading the file and getting the previous lists of the users.
-        if (fread(&user_database, sizeof(user_database->users[0]), user_database->count, fd2) != user_database->count)
-        {
-            printf("failed to update the user database. \n");
-            return 1;
-        }
-        else
-        {
-            printf("user database successfully updated. \n");
-        }
-
-        printf("enter the username. \n");
-
-        // getting the username
-        user_t user;
-        fgets(user.username, CMD_LEN, stdin);
-        cmd_clean(user.username);
-
-        // getting the password
-        fgets(user.password, CMD_LEN, stdin);
-        cmd_clean(user.password);
-        if (hash_password(user.password, user.password) == false)
-        {
-            printf("hashing password failed. \n");
-            return 1;
-        }
-
-        // adding the user to the databse
-        user_create(user_database, user.username, user.password);
-
-        // saving the file
-        update_file_and_save(fd2, user_database);
-
-        fclose(fd2);
-
-        return 0;
+        printf("%u. %-20s %s attempts remaining: %u \n", i + 1, db->users[i].username,
+               db->users[i].is_admin ? "[admin]" : "", db->users[i].attempts_remaining);
     }
+}
+
+bool user_delete_by_username(user_dbt_t *db, const char *username)
+{
+    user_t *found = find_user_in_db(db, username);
+    if (found == NULL)
+    {
+        return false;
+    }
+
+    unsigned int idx = (unsigned int)(found - db->users);
+    for (unsigned int i = idx; i + 1 < db->count; i++)
+    {
+        db->users[i] = db->users[i + 1];
+    }
+    db->count--;
+    memset(&db->users[db->count], 0, sizeof(user_t));
+    db->users[db->count].attempts_remaining = MAX_ATTEMPT;
+    return true;
 }
