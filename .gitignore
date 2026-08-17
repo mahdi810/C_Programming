@@ -38,6 +38,7 @@ release/
 *.swp
 *.swo
 *~
+*.dat
 
 # Operating-system files
 .DS_Store
