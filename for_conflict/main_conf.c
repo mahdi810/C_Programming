@@ -3,5 +3,6 @@
 int main(){
 
     printf("this is the first line. \n"); 
+    printf("this the second goot feature. \n"); 
     return 0; 
 }
