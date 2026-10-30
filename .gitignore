@@ -18,6 +18,7 @@ main
 main.exe
 
 # Build directories
+**/build/
 build/
 bin/
 obj/
